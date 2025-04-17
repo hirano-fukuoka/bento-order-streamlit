@@ -1,19 +1,23 @@
 import streamlit as st
 import pandas as pd
-import pytz
 from datetime import datetime, time
+import pytz
 
+# タイムゾーン設定（日本時間）
+JST = pytz.timezone('Asia/Tokyo')
+
+# 定数
 ORDER_FILE = "orders.csv"
 MENU = ["からあげ弁当", "さば弁当", "日替わり弁当"]
-JST = pytz.timezone('Asia/Tokyo')
-now_japan = datetime.now(JST).time()
-DEADLINE = time(9, 30)
-
+DEADLINE = time(9, 30)  # 日本時間9:30が締切
 ADMIN_USERNAME = "admin"
 ADMIN_PASSWORD = "mkk-bento"
 
 st.set_page_config(page_title="弁当注文アプリ", layout="centered")
 
+# ====================
+# ユーザー画面
+# ====================
 def show_user_view():
     st.title("🍱 社内弁当注文システム")
 
@@ -23,12 +27,11 @@ def show_user_view():
 
     if employee_id and employee_name:
         st.success(f"{employee_name} さん、こんにちは！")
-        now = datetime.now().time()
+        now_japan = datetime.now(JST)
 
-        if now_japan > DEADLINE:
+        if now_japan.time() > DEADLINE:
             st.error("⚠️ 注文締切（9:30）を過ぎています。")
         else:
-            # 注文フォーム表示
             st.subheader("📋 本日のメニュー")
             menu_choice = st.radio("弁当を選択してください", MENU)
             quantity = st.number_input("個数", min_value=1, max_value=5, value=1)
@@ -39,7 +42,7 @@ def show_user_view():
                     "名前": employee_name,
                     "メニュー": menu_choice,
                     "個数": quantity,
-                    "注文時刻": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    "注文時刻": now_japan.strftime("%Y-%m-%d %H:%M:%S")
                 }
                 try:
                     df = pd.read_csv(ORDER_FILE)
@@ -49,10 +52,11 @@ def show_user_view():
                 df.to_csv(ORDER_FILE, index=False)
                 st.success("✅ 注文が完了しました！")
 
+        # 注文履歴の表示
         st.subheader("📚 今日の注文履歴")
         try:
             df = pd.read_csv(ORDER_FILE)
-            today = datetime.now().strftime("%Y-%m-%d")
+            today = now_japan.strftime("%Y-%m-%d")
             df_today = df[df["注文時刻"].str.startswith(today)]
             df_today_user = df_today[df_today["社員番号"] == employee_id]
             if not df_today_user.empty:
@@ -64,18 +68,23 @@ def show_user_view():
     else:
         st.warning("左のサイドバーからログインしてください。")
 
+# ====================
+# 管理者画面
+# ====================
 def show_admin_view():
     st.title("🛠 管理者パネル")
-
     st.subheader("📦 本日の全注文一覧")
     try:
         df = pd.read_csv(ORDER_FILE)
-        today = datetime.now().strftime("%Y-%m-%d")
+        today = datetime.now(JST).strftime("%Y-%m-%d")
         df_today = df[df["注文時刻"].str.startswith(today)]
         st.dataframe(df_today)
     except FileNotFoundError:
         st.info("本日の注文はまだありません。")
 
+# ====================
+# アプリ起動部分
+# ====================
 st.sidebar.title("モード選択")
 mode = st.sidebar.radio("アプリモードを選択", ["ユーザー", "管理者"])
 
@@ -90,4 +99,3 @@ else:
         show_admin_view()
     elif username and password:
         st.sidebar.error("認証に失敗しました。")
-
