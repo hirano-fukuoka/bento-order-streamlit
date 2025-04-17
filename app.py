@@ -1,10 +1,13 @@
 import streamlit as st
 import pandas as pd
+import pytz
 from datetime import datetime, time
 
 ORDER_FILE = "orders.csv"
 MENU = ["からあげ弁当", "さば弁当", "日替わり弁当"]
-DEADLINE = time(10, 30)
+JST = pytz.timezone('Asia/Tokyo')
+now_japan = datetime.now(JST).time()
+DEADLINE = time(9, 30)
 
 ADMIN_USERNAME = "admin"
 ADMIN_PASSWORD = "mkk-bento"
@@ -22,9 +25,10 @@ def show_user_view():
         st.success(f"{employee_name} さん、こんにちは！")
         now = datetime.now().time()
 
-        if now > DEADLINE:
-            st.error("⚠️ 注文締切を過ぎています。")
+        if now_japan > DEADLINE:
+            st.error("⚠️ 注文締切（9:30）を過ぎています。")
         else:
+            # 注文フォーム表示
             st.subheader("📋 本日のメニュー")
             menu_choice = st.radio("弁当を選択してください", MENU)
             quantity = st.number_input("個数", min_value=1, max_value=5, value=1)
