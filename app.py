@@ -8,7 +8,7 @@ JST = pytz.timezone('Asia/Tokyo')
 
 # 定数
 ORDER_FILE = "orders.csv"
-MENU = ["からあげ弁当", "さば弁当", "日替わり弁当"]
+MENU_FILE = "menu.csv"  # メニュー設定ファイル
 DEADLINE = time(9, 30)  # 日本時間9:30が締切
 ADMIN_USERNAME = "admin"
 ADMIN_PASSWORD = "mkk-bento"
@@ -32,15 +32,20 @@ def show_user_view():
         if now_japan.time() > DEADLINE:
             st.error("⚠️ 注文締切（9:30）を過ぎています。")
         else:
+            # メニュー表示（画像付き）
             st.subheader("📋 本日のメニュー")
-            menu_choice = st.radio("弁当を選択してください", MENU)
+            menu_df = pd.read_csv(MENU_FILE)
+            selected_bento = st.radio("弁当を選択してください", menu_df['メニュー名'].tolist(), format_func=lambda x: f"{x}")
+            selected_bento_row = menu_df[menu_df['メニュー名'] == selected_bento].iloc[0]
+            st.image(selected_bento_row['画像URL'], width=200)
+
             quantity = st.number_input("個数", min_value=1, max_value=5, value=1)
 
             if st.button("✅ 注文する"):
                 order = {
                     "社員番号": employee_id,
                     "名前": employee_name,
-                    "メニュー": menu_choice,
+                    "メニュー": selected_bento,
                     "個数": quantity,
                     "注文時刻": now_japan.strftime("%Y-%m-%d %H:%M:%S")
                 }
@@ -81,6 +86,26 @@ def show_admin_view():
         st.dataframe(df_today)
     except FileNotFoundError:
         st.info("本日の注文はまだありません。")
+
+    # メニュー編集機能
+    st.subheader("🍱 メニュー管理")
+    menu_df = pd.read_csv(MENU_FILE)
+
+    edited_menu = []
+    for index, row in menu_df.iterrows():
+        new_name = st.text_input(f"弁当名 (ID: {row['メニューID']})", value=row['メニュー名'], key=f"{row['メニューID']}_name")
+        new_image_url = st.text_input(f"画像URL (ID: {row['メニューID']})", value=row['画像URL'], key=f"{row['メニューID']}_image")
+
+        edited_menu.append({
+            'メニューID': row['メニューID'],
+            'メニュー名': new_name,
+            '画像URL': new_image_url
+        })
+
+    if st.button("📥 メニュー更新"):
+        updated_menu_df = pd.DataFrame(edited_menu)
+        updated_menu_df.to_csv(MENU_FILE, index=False)
+        st.success("メニューが更新されました！")
 
 # ====================
 # アプリ起動部分
